@@ -1,5 +1,7 @@
 ### Variational Autoencoder
 
+---
+
 Variational autoencoders model a latent variable $z$ and an observed variable $x$ via two networks [1].
 
 1. Encoder network; $q_\phi(z|x)​$ 
