@@ -10,12 +10,12 @@ import torch.nn.functional as F
 from argparse import ArgumentParser
 from torch.distributions import MultivariateNormal
 
-from vae.models import VAE
+from vae.models import VAE, MMDVAE
 
 
 def gen_mixture_data(n=512):
-    return (np.r_[np.random.randn(n // 2, 2) + np.array([-3, 3]),
-                  np.random.randn(n // 2, 2) + np.array([3, 3])],
+    return (np.r_[np.random.randn(n // 2, 2) + np.array([-5, 3]),
+                  np.random.randn(n // 2, 2) + np.array([5, 3])],
             np.r_[np.zeros(n // 2), np.ones(n //2)])
 
 def density_plot(x, color, label):
@@ -36,14 +36,19 @@ if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument("--n", default=512, type=int)
     argparser.add_argument("--iterations", default=2000, type=int)
+    argparser.add_argument("--vanilla-vae", action="store_true")
     args = argparser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
 
-    model = VAE(input_dim=2, prior_dim=1, hidden_dim=100)
+    if args.vanilla_vae:
+        model = VAE(input_dim=2, prior_dim=1, hidden_dim=100)
+    else:
+        model = MMDVAE(input_dim=2, prior_dim=1, hidden_dim=100,
+                       alpha=1, lambd=100)
 
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     x, labels = gen_mixture_data(args.n)
     x = torch.Tensor(x)
 
@@ -52,18 +57,18 @@ if __name__ == "__main__":
         loss = model.loss(x).mean()
         loss.backward()
         optimizer.step()
-        if i % 100 == 0:
+        if i % 50 == 0:
             logger.info(f"Iter: {i}\t" + f"Loss: {loss.data:.2f}\t")
 
     plot_data(x)
     plt.show()
-    z = model.sample_z_given_x(x).sample().squeeze(1).numpy()
+    z = model.compute_z_given_x(x).sample().squeeze(1).numpy()
     density_plot(z[labels == 0], color="darkblue", label="Left")
     density_plot(z[labels == 1], color="darkgreen", label="Right")
     plt.legend()
     plt.show()
 
     z = model.sample_z(512)
-    x = model.sample_x_given_z(z)
+    x = model.compute_x_given_z(z)
     plot_data(x.sample())
     plt.show()
