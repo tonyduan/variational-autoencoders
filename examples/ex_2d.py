@@ -10,7 +10,8 @@ import torch.nn.functional as F
 from argparse import ArgumentParser
 from torch.distributions import MultivariateNormal
 
-from vae.models import VAE, MMDVAE
+from vae.models import VAE, InfoVAE
+from vae.divergences import mmd_divergence, energy_distance
 
 
 def gen_mixture_data(n=512):
@@ -45,8 +46,8 @@ if __name__ == "__main__":
     if args.vanilla_vae:
         model = VAE(input_dim=2, prior_dim=1, hidden_dim=100)
     else:
-        model = MMDVAE(input_dim=2, prior_dim=1, hidden_dim=100,
-                       alpha=1, lambd=100)
+        model = InfoVAE(input_dim=2, prior_dim=1, hidden_dim=100,
+                        alpha=1, lambd=10, div=mmd_divergence)
 
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     x, labels = gen_mixture_data(args.n)

@@ -29,13 +29,14 @@ class VAE(nn.Module):
         return self.encoder(x)
 
 
-class MMDVAE(VAE):
+class InfoVAE(VAE):
 
-    def __init__(self, input_dim, prior_dim, hidden_dim, alpha, lambd):
+    def __init__(self, input_dim, prior_dim, hidden_dim, alpha, lambd, div):
         super().__init__(input_dim, prior_dim, hidden_dim)
         self.prior_dim = prior_dim
         self.alpha = alpha
         self.lambd = lambd
+        self.div = div
 
     def loss(self, x):
         pred_z = self.compute_z_given_x(x)
@@ -43,22 +44,10 @@ class MMDVAE(VAE):
         monte_carlo_z = pred_z.rsample()
         monte_carlo_x = self.compute_x_given_z(monte_carlo_z)
         rec_loss = -torch.sum(monte_carlo_x.log_prob(x), dim=1)
-        mmd = self.compute_mmd(monte_carlo_z)
+        monte_carlo_prior = self.prior.rsample((200,))
+        div = self.div(monte_carlo_prior, monte_carlo_z)
         return rec_loss + (1 - self.alpha) * kl_div + \
-               (self.alpha + self.lambd - 1) * mmd
-
-    def compute_mmd(self, sampled_z):
-        n_batch = sampled_z.shape[0]
-        sampled_z_prior = self.prior.rsample((n_batch,))
-        return self.compute_kernel(sampled_z, sampled_z).mean() + \
-               self.compute_kernel(sampled_z_prior, sampled_z_prior).mean() - \
-               2 * self.compute_kernel(sampled_z, sampled_z_prior).mean()
-
-    def compute_kernel(self, x, y):
-        tiled_x = x.unsqueeze(1).expand(x.shape[0], y.shape[0], self.prior_dim)
-        tiled_y = y.unsqueeze(0).expand(x.shape[0], y.shape[0], self.prior_dim)
-        kernel_input = (tiled_x - tiled_y).pow(2).mean(2)
-        return torch.exp(-kernel_input)
+               (self.alpha + self.lambd - 1) * div
 
 
 class DiagNormalNetwork(nn.Module):
