@@ -1,28 +1,167 @@
 ### Variational Autoencoders
 
+Last update: December 2022.
+
 ---
 
-The VAE models a latent variable <img alt="$z$" src="svgs/f93ce33e511096ed626b4719d50f17d2.svg" align="middle" width="8.367621899999993pt" height="14.15524440000002pt"/> and an observed variable <img alt="$x$" src="svgs/332cc365a4987aacce0ead01b8bdcc0b.svg" align="middle" width="9.39498779999999pt" height="14.15524440000002pt"/> via two networks.
+The VAE models a latent variable $z$ and an observed variable $x$. 
 
-1. Encoder network; <img alt="$q_\phi(z|x)​$" src="svgs/8c4290cd764b7be62885f1f2fa0f1ace.svg" align="middle" width="51.17860604999999pt" height="24.65753399999998pt"/> 
-2. Decoder network; <img alt="$p_\theta(x|z)​$" src="svgs/7b4b76719fd0c5230e3c2d4849ba0924.svg" align="middle" width="50.82199814999999pt" height="24.65753399999998pt"/>
+```mermaid
+graph LR;
+    Z((Z)) -->X((X));
+```
 
-The encoder network tries to approximate the intractable posterior <img alt="$p_\theta(z|x)$" src="svgs/8d064232b1495aa703d8d2bb1a19d3aa.svg" align="middle" width="50.82199814999999pt" height="24.65753399999998pt"/>.
+We assume a forward model parameterized by $\theta$, and a backward "approximate posterior" model parameterized by $\phi$.
+$$
+\begin{align*}
+p_\theta(x, z) & = p_\theta(z)p_\theta(x|z) & q_\phi(z|x) & \approx p_\theta(z|x)
+\end{align*}
+$$
+To explain this, it's easier to examine the general case of maximizing the marginal likelihood in a latent-variable model.
 
-The model is trained by maximizing the evidence lower bound via gradient descent.
-<p align="center"><img alt="$$&#10;\mathcal{L}(\theta,\phi) = \mathbb{E}_{z\sim q_\phi(z|x)}[p_\theta(x|z)] - D_{KL}(q_\phi(z|x) || p_\theta(z)) \leq p_\theta(x)&#10;$$" src="svgs/2e6a68c5089ed72134a0cf0384848df5.svg" align="middle" width="427.3819407pt" height="18.639307499999997pt"/></p>
-Low-variance Monte Carlo gradients can be computed via the reparameterization trick.
+**The Evidence Lower Bound**
+
+Consider maximizing the likelihood of observed variables $x$ with latent variables $z$, with a model $\theta$. 
+
+This comes up in many situations, not only in the context of VAEs. Examples: 
+
+- Clustering: $x$ is observations, $z$ are membership identities.
+- Bayesian inference: $x$ is observations, $z$ are model parameters.
+
+It's easy to hypothesize a model $p_\theta(x|z)$. But typically a closed-form model for the *posterior* of the latent variables is intractable due to the dimensionality of $z$. That is, it's impossible to compute the following.
+$$
+p_\theta(z|x)=\frac{p(x,z)}{\int_zp(x,z)dz}
+$$
+What can we do? 
+
+**Property 1**. The Evidence Lower Bound (ELBO), soon to be defined, is a valid lower bound on the marginal likelihood.
+
+Thanks to Jensen's inequality we have the following result on the marginal likelihood.
+$$
+\begin{align*}
+\log p_\theta(x) & = \log \int_z p_\theta(x,z)dz\\
+& = \log \int_zp_\theta(z)p_\theta(x|z)dz\\
+& \geq \int_z p_\theta(z)\log p_\theta(x|z)dz\\
+& =\mathbb{E}_{z\sim p_\theta(z)}[\log p_\theta(x|z)]\\
+\end{align*}
+$$
+
+Following similar logic, there is a bound that arises if we plug in *any* valid distribution $q_\phi(z|x)$ with parameters $\phi$. (Personally I find it easier to understand the equations below with $q_\phi(z|x)$ substituted with $q_\phi(z)$ i.e. an unconditional distribution. It doesn't matter whether it's conditioned on $x$ or not.)
+$$
+\begin{align*}
+\log p_\theta(x) & = \log \int_z q_\phi(z|x)\frac{p_\theta(x,z)}{q_\phi(z|x)}dz\\
+& \geq \int_z q_\phi(z|x) \log \frac{p_\theta(x,z)}{q_\phi(z|x)}dz\\
+& \triangleq \mathcal{L}_{\theta,\phi}(x)\\
+& = \mathbb{E}_{z\sim q_\phi(z|x)}[\log p_\theta(x,z)]+ H(q_\phi(z|x)) \\
+& = \mathbb{E}_{z\sim q_\phi(z|x)}[\log p_\theta(x|z)]+\mathbb{E}_{z\sim q_\phi(z|x)}[\log p_\theta(z)]+H(q_\phi(z|x))\\
+&= \mathbb{E}_{z\sim q_\phi(z|x)}[\log p_\theta(x|z)] -D_\mathrm{KL}(\ q_\phi(z|x)\ \|\ p_\theta(z)\ )
+\end{align*}
+$$
+The last three lines are equivalent forms of the ELBO.
+
+**Property 2**. The gap between the marginal likelihood and the ELBO is exactly the KL divergence between the true intractable posterior $p_\theta(z|x)$ and the approximated posterior $q_\phi(z|x)$.
+
+Let's compute the gap between the marginal likelihood and the ELBO.
+$$
+\begin{align*}
+\log p_\theta(x) - \mathcal{L}_{\theta,\phi}(x) 
+& = \log \int_z p_\theta(x,z) dz -  \int_z q_\phi(z|x) \log \frac{p_\theta(x)p_\theta(z|x)}{q_\phi(z|x)}dz\\
+& = \log \int_z p_\theta(z|x) dz + \log p_\theta(x) -  \int_z q_\phi(z|x) \log \frac{p_\theta(z|x)}{q_\phi(z|x)}dz - \log p_\theta(x)\\
+& = \log \int_z p_\theta(z|x) dz  -  \int_z q_\phi(z|x) \log \frac{p_\theta(z|x)}{q_\phi(z|x)}dz \\
+& = D_{KL}(\ q_\phi(z|x)\ \|\ p_\theta(z|x)\ ) \geq 0
+\end{align*}
+$$
+So by maximizing the ELBO, we're actually optimizing how well we approximate the intractable posterior!
+
+Note that by invoking the non-negativity of KL divergence, this derivation yields another proof of Property 1 (though a less intuitive way to achieve the same result).
+
+**The Reparameterization Trick **
+
+A traditional variational auto-encoder makes the following choices:
+
+1. The distribution $p_\theta(x|z) \sim N(\mu,\Sigma)$ where $\mu,\Sigma$ are output by an "encoder" neural network dependent on $z$.
+2. The distribution $q_\phi(z|x) \sim N(\mu,\Sigma)$ where $\mu,\Sigma$ are output by a "decoder" neural network dependent on $x$.
+3. The distribution $p_\theta(z) \sim N(0,I)$  and is typically fixed and not learned.
+
+Additionally, we assume fully factorized covariance matrices throughout i.e. every predicted $\Sigma  = \mathrm{diag}(\sigma^2_d)$.
+
+To optimize we perform gradient descent on the last of the three equivalent versions of the ELBO.
+$$
+\mathcal{L}_{\theta,\phi}(x) = \mathbb{E}_{z\sim q_\phi(z|x)}[\log p_\theta(x|z)] - D_\mathrm{KL}(q_\phi(z|x)\ \|\ p_\theta(z))
+$$
+The KL divergence term has a closed form solution (between two Gaussians), and therefore a closed-form gradient. But it's not obvious how to best compute the reconstruction term for gradient descent. 
+
+There are two "tricks" to do so. Let's again look at the general case first: our goal is to compute
+$$
+\begin{align*}
+\nabla_\theta \mathbb{E}_{x\sim p_\theta(x)}[f(x)]
+\end{align*}
+$$
+**Trick 1.** The log-derivative trick (aka "REINFORCE"). Recall that for any function $g$,
+$$
+\nabla_x \log g(x) = \frac{\nabla_x g(x)}{g(x)}
+$$
+Then we can derive the following Monte Carlo gradient estimate.
+$$
+\begin{align*}
+\nabla_\theta \mathbb{E}_{x \sim p_\theta(x)}[f(x)] & = \nabla_\theta \int_xp_\theta(x) f_(x)dx\\
+
+& = \int_xp_\theta(x)\frac{\nabla_\theta p_\theta(x)}{p_\theta(x)}f(x)dx\\
+& = \int_xp_\theta(x)\nabla_\theta \log p_\theta(x) f(x) dx\\
+& = \mathbb{E}_{x\sim p_\theta(x)}[\nabla_\theta \log p_\theta(x) f(x)]\\
+& \approx \frac{1}{L}\sum_{l=1}^L \nabla_\theta \log p_\theta(x^{(l)}) f(x^{(l)})
+\end{align*}
+$$
+**Trick 2**. The reparameterization trick. Suppose we can re-write the sampling process as
+$$
+\begin{align*}
+x & \sim p_\theta(x) & & \iff&  x = g_\theta(\epsilon), \epsilon \sim p(\epsilon).
+\end{align*}
+$$
+For example, in the case of a Normal distribution it's well known that
+$$
+\begin{align*}
+x & \sim N(\mu,\Sigma) & & \iff&  x = L\epsilon + \mu, \epsilon \sim N(0,I) \text{ where } LL^\top = \Sigma.
+\end{align*}
+$$
+Then we can derive the following Monte Carlo gradient estimate.
+$$
+\begin{align*}
+\nabla_\theta \mathbb{E}_{x\sim p_\theta(x)}[f(x)] & = \nabla_\theta \mathbb{E}_{\epsilon \sim p(\epsilon)}[f(g_\theta(\epsilon))]\\
+&= \mathbb{E}_{\epsilon \sim p(\epsilon)}[\nabla_\theta f(g_\theta(\epsilon))]\\
+& \approx \frac{1}{L}\sum_{l=1}^L \nabla_\theta f(g_\theta(\epsilon^{(l)}))
+\end{align*}
+$$
+The use of this estimator was the primaryinnovation of [1]. 
+
+Putting it together in the context of VAEs, we can write the gradient as the following.
+$$
+\begin{align*}
+\nabla_{\theta,\phi}\mathcal{L}_{\theta,\phi}(x)& =\nabla_{\theta,\phi} \left(\mathbb{E}_{z\sim q_\phi(z|x)}[\log p_\theta(x|z)] - D_\mathrm{KL}(\ q_\phi(z|x)\ \|\ p_\theta(z)\ )\right)\\
+& = \mathbb{E}_{\epsilon\sim p(\epsilon)}[\nabla_{\theta,\phi}\log p_\theta(x|g_\phi(\epsilon))]- \nabla_{\theta,\phi}D_{KL}(\ q_\phi(z|x)\ \|\ p_\theta(z) \ )
+\end{align*}
+$$
 
 #### InfoVAE
 
-We implement the InfoVAE [2], built on a modified ELBO,
-<p align="center"><img alt="$$&#10;\mathcal{L}(\theta,\phi) = \mathbb{E}_{z\sim q_\phi(z|x)}[p_\theta(x|z)] - (1-\alpha) D_{KL}(q_\phi(z|x) || p_\theta(z)) -(\alpha+\lambda-1)D(q_\phi(z) || p_\theta(z)),&#10;$$" src="svgs/f6e512403521ae8d4de674afefb6099d.svg" align="middle" width="635.32079985pt" height="18.639307499999997pt"/></p>
-where the last term is any choice of divergence. In our case we implement two choices: maximum mean discrepancy (MMD) and energy distance [3].
-<p align="center"><img alt="$$&#10;D_{\mathrm{MMD}} = \mathbb{E}_{z\sim p,z' \sim p}[k(z,z')] + \mathbb{E}_{z\sim q,z'\sim q}[k(z,z')] - 2\mathbb{E}_{z\sim p, z' \sim q}[k(z,z')],&#10;$$" src="svgs/9c79a93fec9654f3a94ab2774b1d1a70.svg" align="middle" width="504.00104534999997pt" height="17.8831554pt"/></p>
-<p align="center"><img alt="$$&#10;D_\mathrm{energy} = 2\mathbb{E}_{z\sim p,z' \sim q}[||z-z'||_2]-\mathbb{E}_{z\sim p,z' \sim p}[||z-z'||_2]-\mathbb{E}_{z\sim q,z' \sim q}[||z-z'||_2].&#10;$$" src="svgs/2cffb33741083f4e2d7daa9253ca38b6.svg" align="middle" width="557.86499505pt" height="17.8831554pt"/></p>
+In this repository we implement as well the InfoVAE [2], built on a modified ELBO
+$$
+\mathcal{L}(\theta,\phi) = \mathbb{E}_{z\sim q_\phi(z|x)}[p_\theta(x|z)] - (1-\alpha) D_{KL}(\ q_\phi(z|x)\ \|\ p_\theta(z)\ ) -(\alpha+\lambda-1)D(\ q_\phi(z)\ \|\ p_\theta(z)\ ),
+$$
+where the last term is any choice of divergence. 
+
+In our case we implement two choices: maximum mean discrepancy (MMD) and energy distance [3].
+$$
+D_{\mathrm{MMD}} = \mathbb{E}_{z\sim p,z' \sim p}[k(z,z')] + \mathbb{E}_{z\sim q,z'\sim q}[k(z,z')] - 2\mathbb{E}_{z\sim p, z' \sim q}[k(z,z')],
+$$
+$$
+D_\mathrm{energy} = 2\mathbb{E}_{z\sim p,z' \sim q}[||z-z'||_2]-\mathbb{E}_{z\sim p,z' \sim p}[||z-z'||_2]-\mathbb{E}_{z\sim q,z' \sim q}[||z-z'||_2].
+$$
 
 Our choice of kernel for MMD is the squared exponential kernel.
-<p align="center"><img alt="$$&#10;k(z,z') = \exp(-\frac{||z-z'||_2^2}{\mathrm{dim}}).&#10;$$" src="svgs/ca76b20e00ae9f3f5595d8504a5f3f42.svg" align="middle" width="198.70558125pt" height="35.77743345pt"/></p>
+$$
+k(z,z') = \exp(-\frac{||z-z'||_2^2}{\mathrm{dim}}).
+$$
 
 #### Examples
 
