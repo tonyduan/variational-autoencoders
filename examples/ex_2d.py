@@ -9,8 +9,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from argparse import ArgumentParser
 
-from src.blocks import VAE, InfoVAE
-from src.divergences import mmd_divergence, energy_distance
+from src.blocks import VAE
 
 
 def gen_mixture_data(n=512):
@@ -37,17 +36,12 @@ if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument("--n", default=512, type=int)
     argparser.add_argument("--iterations", default=2000, type=int)
-    argparser.add_argument("--use-vanilla-vae", default=0, type=int)
     args = argparser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    if args.use_vanilla_vae:
-        model = VAE(input_dim=2, prior_dim=1, hidden_dim=100)
-    else:
-        model = InfoVAE(input_dim=2, prior_dim=1, hidden_dim=100,
-                        alpha=1, lambd=10, div=mmd_divergence)
+    model = VAE(input_dim=2, prior_dim=1, hidden_dim=100)
 
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.iterations)

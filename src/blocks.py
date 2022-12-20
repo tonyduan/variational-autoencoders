@@ -46,24 +46,3 @@ class VAE(nn.Module):
 
     def sample_z(self, n_samples):
         return self.prior.rsample((n_samples,))
-
-
-class InfoVAE(VAE):
-
-    def __init__(self, input_dim, prior_dim, hidden_dim, alpha, lambd, div):
-        super().__init__(input_dim, prior_dim, hidden_dim)
-        self.prior_dim = prior_dim
-        self.alpha = alpha
-        self.lambd = lambd
-        self.div = div
-
-    def loss(self, x):
-        pred_z = self.z_given_x(x)
-        kl_div = kl.kl_divergence(pred_z, self.prior).squeeze(1)
-        monte_carlo_z = pred_z.rsample()
-        monte_carlo_x = self.x_given_z(monte_carlo_z)
-        rec_loss = -torch.sum(monte_carlo_x.log_prob(x), dim=1)
-        monte_carlo_prior = self.prior.rsample((200,))
-        div = self.div(monte_carlo_prior, monte_carlo_z)
-        return rec_loss + (1 - self.alpha) * kl_div + (self.alpha + self.lambd - 1) * div
-
