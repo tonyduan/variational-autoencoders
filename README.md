@@ -75,7 +75,7 @@ So by maximizing the ELBO, we're actually optimizing how well we approximate the
 
 Note that by invoking the non-negativity of KL divergence, this derivation yields another proof of Property 1 (though a less intuitive way to achieve the same result).
 
-**The Reparameterization Trick **
+**The Reparameterization Trick**
 
 A traditional variational auto-encoder makes the following choices:
 
