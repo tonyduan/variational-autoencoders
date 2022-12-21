@@ -16,7 +16,8 @@ def gen_mixture_data(n=512):
     x = np.r_[np.random.randn(n // 2, 2) + np.array([-5, 0]),
               np.random.randn(n // 2, 2) + np.array([5, 0])]
     y = np.r_[np.zeros(n // 2), np.ones(n //2)]
-    return (x - np.mean(x)) / np.std(x, ddof=1), y
+    x = (x - np.mean(x, axis=0, keepdims=True)) / np.std(x, axis=0, ddof=1, keepdims=True)
+    return x, y
 
 def density_plot(x, color, label):
     density = sp.stats.kde.gaussian_kde(x)
@@ -26,8 +27,7 @@ def density_plot(x, color, label):
     plt.axis("off")
 
 def plot_data(x):
-    plt.hist2d(x[:,0].numpy(), x[:,1].numpy(), bins=100,
-               range=np.array([(-3, 3), (-3, 3)]))
+    plt.hist2d(x[:,0].numpy(), x[:,1].numpy(), bins=100, range=np.array([(-3, 3), (-6, 6)]))
     plt.axis("off")
 
 

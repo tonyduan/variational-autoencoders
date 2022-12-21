@@ -83,7 +83,7 @@ A traditional variational auto-encoder makes the following choices:
 2. The distribution $q_\phi(z|x) \sim N(\mu,\Sigma)$ where $\mu,\Sigma$ are output by a "decoder" neural network dependent on $x$.
 3. The distribution $p_\theta(z) \sim N(0,I)$  and is typically fixed and not learned.
 
-Additionally, we assume fully factorized covariance matrices throughout i.e. every predicted $\Sigma  = \mathrm{diag}(\sigma^2_d)$.
+There are a variety of noise assumptions on $\Sigma$ we can choose, in this codebase we fully factorized covariance matrices throughout i.e. every predicted $\Sigma  = \mathrm{diag}(\sigma^2_d)$. For details see [[this repository]](https://github.com/tonyduan/mdn#mixture-density-network).
 
 To optimize we perform gradient descent on the last of the equivalent versions of the ELBO.
 ```math
@@ -147,6 +147,10 @@ Putting it together in the context of VAEs, we can write the gradient as the fol
 See the `examples/` folder for examples. Below we show the learned latent representation and forward samples for a mixture of Gaussians, with a standard normal prior.
 
 ![ex_model](examples/ex_2d.png "Example model output")
+
+Additionally we try to reconstruct digits.
+
+![ex_model](examples/ex_digits.png "Example model output")
 
 #### References
 
