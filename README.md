@@ -6,12 +6,14 @@ Last update: December 2022.
 
 The VAE models a latent variable $\mathbf{z}$ and an observed variable $\mathbf{x}$.
 
-```mermaid
-graph LR;
-    Z((Z)) -->X((X));
+```math
+\begin{equation*}
+\mathbf{z}\rightarrow \mathbf{x}
+\end{equation*}
 ```
 
 We assume a forward model parameterized by $\theta$, and a backward "approximate posterior" model by $\phi$.
+
 ```math
 \begin{align*}
 p_\theta(\mathbf{x}, \mathbf{z}) & = p_\theta(\mathbf{z})p_\theta(\mathbf{x}|\mathbf{z}) & q_\phi(\mathbf{z}|\mathbf{x}) & \approx p_\theta(\mathbf{z}|\mathbf{x})
@@ -52,7 +54,7 @@ Following similar logic, there is a bound that arises if we plug in *any* valid 
 \log p_\theta(\mathbf{x}) & = \log \int_\mathbf{z} q_\phi(\mathbf{z}|\mathbf{x})\frac{p_\theta(\mathbf{x},\mathbf{z})}{q_\phi(\mathbf{z}|\mathbf{x})}d\mathbf{z}\\
 & \geq \int_\mathbf{z} q_\phi(\mathbf{z}|\mathbf{x}) \log \frac{p_\theta(\mathbf{x},\mathbf{z})}{q_\phi(\mathbf{z}|\mathbf{x})}d\mathbf{z}\\
 & = \mathbb{E}_{\mathbf{z}\sim q_\phi(\mathbf{z}|\mathbf{x})}[\log p_\theta(\mathbf{x},\mathbf{z})]+ H(q_\phi(\mathbf{z}|\mathbf{x})) \\
-& = \mathbb{E}_{\mathbf{z}\sim q_\phi(\mathbf{z}|\mathbf{x})}[\log p_\theta(\mathbf{x}|\mathbf{z})]+\mathbb{E}_{z\sim q_\phi(\mathbf{z}|\mathbf{x})}[\log p_\theta(z)]+H(q_\phi(\mathbf{z}|\mathbf{x}))\\
+& = \mathbb{E}_{\mathbf{z}\sim q_\phi(\mathbf{z}|\mathbf{x})}[\log p_\theta(\mathbf{x}|\mathbf{z})]+\mathbb{E}_{\mathbf{z}\sim q_\phi(\mathbf{z}|\mathbf{x})}[\log p_\theta(z)]+H(q_\phi(\mathbf{z}|\mathbf{x}))\\
 &= \mathbb{E}_{\mathbf{z}\sim q_\phi(\mathbf{z}|\mathbf{x})}[\log p_\theta(\mathbf{x}|\mathbf{z})] -D_\mathrm{KL}(\ q_\phi(\mathbf{z}|\mathbf{x})\ \|\ p_\theta(\mathbf{z})\ )\\
 & \triangleq \mathcal{L}_{\theta,\phi}(\mathbf{x})
 \end{align*}
@@ -141,11 +143,11 @@ Putting it together in the context of VAEs, we use this trick to write $q_\phi(\
 \end{align*}
 ```
 
-Then we can write the gradient as the following.
+Then we can write the gradient as the following, which optimizes easily with stochastic gradient descent.
 ```math
 \begin{align*}
 \nabla_{\theta,\phi}\mathcal{L}_{\theta,\phi}(\mathbf{x})& =\nabla_{\theta,\phi} \left(\mathbb{E}_{\mathbf{z}\sim q_\phi(\mathbf{z}|\mathbf{x})}[\log p_\theta(\mathbf{x}|\mathbf{z})] - D_\mathrm{KL}(\ q_\phi(\mathbf{z}|\mathbf{x})\ \|\ p_\theta(\mathbf{z})\ )\right)\\
-& = \mathbb{E}_{\boldsymbol\epsilon\sim p(\boldsymbol\epsilon)}\left[\nabla_{\theta,\phi}\log p_\theta\left(\mathbf{x}|\mu_\phi(\mathbf{x}) + L_\phi(\mathbf{x})\boldsymbol\epsilon\right)\right]- \nabla_{\theta,\phi}D_\mathrm{KL}\left(\ q_\phi(\mathbf{z}|\mathbf{x})\ \|\ p_\theta(\mathbf{z}) \ \right)
+& = \mathbb{E}_{\boldsymbol\epsilon\sim p(\boldsymbol\epsilon)}\left[\nabla_{\theta,\phi}\underbrace{\log p_\theta\left(\mathbf{x}|\mu_\phi(\mathbf{x}) + L_\phi(\mathbf{x})\boldsymbol\epsilon\right)}_\text{reconstruction term}\right] - \nabla_{\theta,\phi}\underbrace{D_\mathrm{KL}\left(\ q_\phi(\mathbf{z}|\mathbf{x})\ \|\ p_\theta(\mathbf{z}) \ \right)}_\text{KL divergence term}
 \end{align*}
 ```
 

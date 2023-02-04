@@ -5,12 +5,6 @@ import torch.nn as nn
 from torch.distributions import Normal, kl
 
 
-def init_weights_xavier(module):
-    if isinstance(module, nn.Linear):
-        torch.nn.init.xavier_normal_(module.weight)
-        torch.nn.init.constant_(module.bias, 0.)
-
-
 class NoiseType(Enum):
     DIAGONAL = auto()
     ISOTROPIC = auto()
@@ -38,7 +32,6 @@ class NormalNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, out_dim + num_sigma_channels),
         )
-        self.apply(init_weights_xavier)
 
     def forward(self, x, eps=1e-6):
         params = self.network(x)
@@ -54,11 +47,11 @@ class NormalNetwork(nn.Module):
 
 class VAE(nn.Module):
 
-    def __init__(self, input_dim, prior_dim, hidden_dim):
+    def __init__(self, input_dim, latent_dim, hidden_dim):
         super().__init__()
-        self.prior = Normal(torch.zeros(prior_dim), torch.ones(prior_dim))
-        self.z_given_x = NormalNetwork(input_dim, prior_dim, hidden_dim, NoiseType.ISOTROPIC)
-        self.x_given_z = NormalNetwork(prior_dim, input_dim, hidden_dim, NoiseType.ISOTROPIC)
+        self.prior = Normal(torch.zeros(latent_dim), torch.ones(latent_dim))
+        self.z_given_x = NormalNetwork(input_dim, latent_dim, hidden_dim, NoiseType.ISOTROPIC)
+        self.x_given_z = NormalNetwork(latent_dim, input_dim, hidden_dim, NoiseType.ISOTROPIC)
 
     def loss(self, x):
         pred_z = self.z_given_x(x)

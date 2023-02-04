@@ -41,7 +41,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    model = VAE(input_dim=2, prior_dim=1, hidden_dim=100)
+    model = VAE(input_dim=2, latent_dim=1, hidden_dim=100)
 
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.iterations)
